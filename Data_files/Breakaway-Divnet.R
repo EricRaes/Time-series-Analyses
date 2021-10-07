@@ -38,6 +38,8 @@ carbom_no_mito = subset_taxa(carbom_no_mito, !Family=="Mitochondria" )
 carbom_no_mito = subset_samples(carbom_no_mito, !Month== "XXX")
 carbom_no_mito = subset_samples(carbom_no_mito, !Depth..m.== "60m")
 ##############
+carbom_no_mito= prune_samples(sample_sums(carbom_no_mito) >= 5000, carbom_no_mito) #clean up your data and remove samples with low sequencing depth; in this case only keep samples which have a sequencing depth >= 5000 reads
+#####
 
 #This is more computationally intensive (typical 1-min runtime)
 samp_rich <- sample_richness(carbom_no_mito)
