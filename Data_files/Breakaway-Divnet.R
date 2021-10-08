@@ -77,6 +77,11 @@ plot(est_rich, carbom_no_mito, color = "Year")
 
 summary(est_rich) %>% as_tibble() 
 
+#Model selection was inspected for specific samples (e.g., BB14-22C with large error bars and sequence depth = 12,387) 
+plot(est_rich$'BB14-22C')
+#Here, a transformed weighted linear regression model(tWLRLM), instead of the Kemp models described in Willis et al (2015) was fit in a sample with high singleton count that inflates predicted frequency of unobserved taxa 
+#Experimenting with function 'breakaway_nof1' to remove singletons fixes high error but misfits numerous other samples. However, put in perspective poor model fit to BB14-22C leaves overall patterns unaffected.
+
 ##### summary and dataframe it
 
 break_summary <- est_rich %>% summary
