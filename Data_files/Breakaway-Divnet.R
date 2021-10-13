@@ -39,6 +39,7 @@ carbom_no_mito = subset_samples(carbom_no_mito, !Month== "XXX")
 carbom_no_mito = subset_samples(carbom_no_mito, !Depth..m.== "60m")
 ##############
 carbom_no_mito= prune_samples(sample_sums(carbom_no_mito) >= 5000, carbom_no_mito) #clean up your data and remove samples with low sequencing depth; in this case only keep samples which have a sequencing depth >= 5000 reads
+carbom_no_mito= subset_samples(carbom_no_mito, sample_names(carbom_no_mito) != "BB14-22C") # Remove sample with poor model fit in breakaway
 #####
 
 #This is more computationally intensive (typical 1-min runtime)
