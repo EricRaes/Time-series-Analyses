@@ -188,20 +188,20 @@ Bedford_rar <-rarefy_even_depth(Bedford_no_mito, sample.size = 5000,
                                rngseed = 123, replace = TRUE, trimOTUs = TRUE, verbose=TRUE)
 
 results = estimate_richness(Bedford_rar, measures =c( 'Chao1', "Shannon"))
-write.csv(results, "ASV_alpha.csv")
-Richness<-read.csv("ASV_alpha.csv", header=TRUE)
+write.csv(results, "output/ASV_alpha.csv")
+Richness<-read.csv("output/ASV_alpha.csv", header=TRUE)
 names(Richness)[1] <- "X"
 Richness$X <- gsub("[.]", "-", Richness$X)
 
 d = sample_data(Bedford_rar)
 d1<- data.frame(d)
-write.csv(d1, "META_ASV_alpha.csv")
-META<-read.csv("META_ASV_alpha.csv", header=TRUE)
+write.csv(d1, "output/META_ASV_alpha.csv")
+META<-read.csv("output/META_ASV_alpha.csv", header=TRUE)
 #names(write.csv)[1] <- "X"
 
 METADATA<-merge(Richness,META, by="X", all=TRUE)
 
-#changing name of first column as dates
+#changing name of fifth column as dates
 names(METADATA)[5] <- "Date_Merge"
 #checking class of dates
 class(METADATA$Date_Merge)
@@ -285,26 +285,3 @@ p + theme_bw()+geom_point(shape = 1,size = 2,colour = "black")+
   stat_smooth(method = "loess",  aes(color = Depth..m.), formula = y ~ x, se = TRUE)
 
 ######################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
