@@ -3,8 +3,7 @@
 .RData
 .Ruserdata
 .RDataTmp
-R_scripts/BBMO_version.R
-R_scripts/SPOTS_version.R
+R_scripts/0*
 Data_files/SPOTS-5m_ASV_10k-100k.csv
 Data_files/SPOTS-5m_ASV_5k-100k.csv
 output
