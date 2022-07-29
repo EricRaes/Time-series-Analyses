@@ -2,68 +2,62 @@ library(tidyverse)
 library(devtools)
 library(qiime2R)
 library(ggplot2)
-library(microbiome)
+library(microbiome); packageVersion("microbiome")
 library(magrittr)
 library(breakaway)
 library(phyloseq)
 library(ggpubr)
 library(timetk)
-library(ggfortify)
+#library(ggfortify)
 library(fpp3)
 library(forecast)
 library(seasonal)
 library(tsfeatures)
 
+##import data
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
-##########
-# Import data
-########## 
-otu_mat <-"Data_files/Bedford_Basin_ASV.csv"
-tax_mat <- "Data_files/Bedford_Basin_taxonomy.csv"
-samples_df <- "Data_files/Bedford_Basin_metadata.csv"
+otu_mat <-"ASV_BB_Table.csv"
+tax_mat <- "Taxonomy_species_Silva138.1_BB.csv"
+samples_df <- "METADATA_niskin_CTD_R_3.csv"
 
 file.exists(otu_mat)
 file.exists(tax_mat)
 file.exists(samples_df)
 
-(Bedford<-read_csv2phyloseq(
+carbom<-read_csv2phyloseq(
   otu.file = otu_mat,
   taxonomy.file = tax_mat,
   metadata.file = samples_df,
-  sep = ","))
-
-
-##########
-# Clean up in the same way as in R_Scripts_Time_Series.R
-########## 
-(Bedford_no_mito = subset_taxa(Bedford, !Kingdom=="NA"))
-(Bedford_no_mito = subset_taxa(Bedford_no_mito, !Kingdom=="Eukaryota"))
-(Bedford_no_mito = subset_taxa(Bedford_no_mito, !Phylum=="NA"))
-(Bedford_no_mito = subset_taxa(Bedford_no_mito, !Order=="Chloroplast"))
-(Bedford_no_mito = subset_taxa(Bedford_no_mito, !Family=="Mitochondria"))
-(Bedford_no_mito = subset_samples(Bedford_no_mito, Depth < 50)) # remove deep samples
-
-# Additionally:
-(Bedford_no_mito = prune_samples(sample_sums(Bedford_no_mito) >= 5000, Bedford_no_mito)) # remove samples with less than 5000 sequences
-# The following lines are commented because I don't know why we would want to run them
-# (Bedford_no_mito = subset_samples(Bedford_no_mito, sample_names(Bedford_no_mito) != "BB14-22C")) # why this sample?
-# (Bedford_no_mito = prune_taxa(taxa_sums(Bedford_no_mito)>=100, Bedford_no_mito))                 # why prune rare taxa? 
-# (Bedford_no_mito = prune_samples(sample_data(Bedford_no_mito)$Year=="2014", Bedford_no_mito))    # Why 2014?
-
+  sep = ",")
 
 ##########
-# Estimate richness with Breakaway
+########## clean up
 ########## 
-raw_richness <- sample_richness(Bedford_no_mito)
-raw_breakaway <- breakaway(Bedford_no_mito)
-Bedford_est_rich <- breakaway(Bedford_no_mito, cutoff = 15)
+
+carbom_no_mito = subset_taxa(carbom, !Order=="Chloroplast" )
+carbom_no_mito = subset_taxa(carbom_no_mito, !Family=="Mitochondria" )
+carbom_no_mito = subset_samples(carbom_no_mito, !Month== "XXX")
+carbom_no_mito = subset_samples(carbom_no_mito, !Depth..m.== "60m")
+carbom_no_mito = prune_samples(sample_sums(carbom_no_mito) >= 5000, carbom_no_mito)
+carbom_no_mito = subset_samples(carbom_no_mito, sample_names(carbom_no_mito) != "BB14-22C")
+
+#carbom_no_mito=prune_taxa(taxa_sums(carbom_no_mito)>=100, carbom_no_mito)
+
+#carbom_no_mito=prune_samples(sample_data(carbom_no_mito)$Year=="2014", carbom_no_mito)
+
+################################  
+######################################## 
+######################################## 
+
+est_rich <- breakaway(carbom_no_mito, cutoff = 15)
 
 #Some samples have extreme uncertainties based on the frequency counts
-plot(BB_est_rich, BB_no_mito, color = "Year")
+plot(est_rich, carbom_no_mito, color = "Year")
 
-break_summary <- BB_est_rich %>% summary
+break_summary <- est_rich %>% summary
 names(break_summary)[5] <- "SampleID"
-META<- read.csv(samples_df, header=TRUE)
+META<- read.csv("METADATA_niskin_CTD_R_3.csv", header=TRUE)
 
 brokenaway<-merge(META, break_summary, by="SampleID")
 brokenaway$Depth..m. = factor(brokenaway$Depth..m., levels=c("1m", "5m", "10m"),
@@ -201,9 +195,9 @@ brokenaway_group %>%
 brokenaway_group %>%
   features(estimate, feat_stl) %>% 
   ggplot(aes(x = trend_strength, y = seasonal_strength_year)) +
-  geom_point(size=5) 
+  geom_point(size=5)
 # the seaonal strength is much greater than trend, add below argument (plus color) when other time series are included
-  #facet_wrap((station))
+  facet_wrap((station))
  
 # Ugly plot it has one point (Bedford Basin), but if you include the five other timeseries, you can directly 
 # compare which have the strongest seasonal component and whether this is latitudinally structured
