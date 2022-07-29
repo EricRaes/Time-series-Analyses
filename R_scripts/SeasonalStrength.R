@@ -14,12 +14,10 @@ library(forecast)
 library(seasonal)
 library(tsfeatures)
 
-##import data
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-
-otu_mat <-"ASV_BB_Table.csv"
-tax_mat <- "Taxonomy_species_Silva138.1_BB.csv"
-samples_df <- "METADATA_niskin_CTD_R_3.csv"
+# Import data
+otu_mat <-"Data_files/Bedford_Basin/ASV_table.csv"
+tax_mat <- "Data_files/Bedford_Basin/Taxonomy.csv"
+samples_df <- "Data_files/Bedford_Basin/Metadata.csv"
 
 file.exists(otu_mat)
 file.exists(tax_mat)
@@ -57,7 +55,7 @@ plot(est_rich, carbom_no_mito, color = "Year")
 
 break_summary <- est_rich %>% summary
 names(break_summary)[5] <- "SampleID"
-META<- read.csv("METADATA_niskin_CTD_R_3.csv", header=TRUE)
+META<- read.csv("Data_files/Bedford_Basin/Metadatav", header=TRUE)
 
 brokenaway<-merge(META, break_summary, by="SampleID")
 brokenaway$Depth..m. = factor(brokenaway$Depth..m., levels=c("1m", "5m", "10m"),

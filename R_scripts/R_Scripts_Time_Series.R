@@ -27,9 +27,9 @@ library(eulerr)
 
 
 ######## Import data as an example here we show the Bedford Basin data
-otu_mat <-"./Data_files/Bedford_Basin_ASV.csv"
-tax_mat <- "./Data_files/Bedford_Basin_taxonomy.csv"
-samples_df <- "./Data_files/Bedford_Basin_metadata.csv"
+otu_mat <-"./Data_files/Bedford_Basin/ASV_table.csv"
+tax_mat <- "./Data_files/Bedford_Basin/Taxonomy.csv"
+samples_df <- "./Data_files/Bedford_Basin/Metadata.csv"
 file.exists(otu_mat)
 file.exists(tax_mat)
 file.exists(samples_df)
@@ -188,15 +188,15 @@ Bedford_rar <-rarefy_even_depth(Bedford_no_mito, sample.size = 5000,
                                rngseed = 123, replace = TRUE, trimOTUs = TRUE, verbose=TRUE)
 
 results = estimate_richness(Bedford_rar, measures =c( 'Chao1', "Shannon"))
-write.csv(results, "output/ASV_alpha.csv")
-Richness<-read.csv("output/ASV_alpha.csv", header=TRUE)
+write.csv(results, "output/Bedford_Basin/ASV_alpha.csv")
+Richness<-read.csv("output/Bedford_Basin/ASV_alpha.csv", header=TRUE)
 names(Richness)[1] <- "X"
 Richness$X <- gsub("[.]", "-", Richness$X)
 
 d = sample_data(Bedford_rar)
 d1<- data.frame(d)
-write.csv(d1, "output/META_ASV_alpha.csv")
-META<-read.csv("output/META_ASV_alpha.csv", header=TRUE)
+write.csv(d1, "output/Bedford_Basin/META_ASV_alpha.csv")
+META<-read.csv("output/Bedford_Basin/META_ASV_alpha.csv", header=TRUE)
 #names(write.csv)[1] <- "X"
 
 METADATA<-merge(Richness,META, by="X", all=TRUE)
