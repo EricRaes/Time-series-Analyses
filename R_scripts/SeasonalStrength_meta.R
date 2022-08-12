@@ -1,0 +1,692 @@
+library(tidyverse)
+library(devtools)
+library(qiime2R)
+library(ggplot2)
+library(phyloseq)
+library(microbiome)
+library(magrittr)
+library(breakaway)
+library(ggpubr)
+library(timetk)
+library(ggfortify)
+library(fpp3)
+library(forecast)
+library(seasonal)
+library(tsfeatures)
+
+
+################################################################################
+#     Import data
+################################################################################
+
+##########
+# A. Bedford Basin
+##########
+# Read file locations
+otu_mat <-"Data_files/Bedford_Basin/ASV_table.csv"
+tax_mat <- "Data_files/Bedford_Basin/Taxonomy.csv"
+samples_df <- "Data_files/Bedford_Basin/Metadata.csv"
+
+# You can check for if file exists
+file.exists(c(tax_mat, samples_df , otu_mat)) 
+
+# Load 3 csv files into 1 phyloseq object (all in 1 Bedford Basion dataset)
+(Bedford<-read_csv2phyloseq(
+  otu.file = otu_mat,
+  taxonomy.file = tax_mat,
+  metadata.file = samples_df,
+  sep = ","))
+
+# Filter in the same way as in R_Scripts_Time_Series.R
+(Bedford = subset_taxa(Bedford, !Kingdom=="NA"))
+(Bedford = subset_taxa(Bedford, !Kingdom=="Eukaryota"))
+(Bedford = subset_taxa(Bedford, !Phylum=="NA"))
+(Bedford = subset_taxa(Bedford, !Order=="Chloroplast"))
+(Bedford = subset_taxa(Bedford, !Family=="Mitochondria"))
+(Bedford = subset_samples(Bedford, Depth < 50)) # remove deep samples
+
+# Additionally:
+(Bedford = prune_samples(sample_sums(Bedford) >= 5000, Bedford)) # remove samples with less than 5000 sequences
+# The following lines are commented because I don't know why we would want to run them
+#(Bedford_no_mito = subset_samples(Bedford_no_mito, sample_names(Bedford_no_mito) != "BB14-22C")) # why this sample?
+#(Bedford_no_mito = prune_taxa(taxa_sums(Bedford_no_mito)>=100, Bedford_no_mito))                 # why prune rare taxa? 
+#(Bedford_no_mito = prune_samples(sample_data(Bedford_no_mito)$Year=="2014", Bedford_no_mito))    # Why 2014?
+
+
+##########
+# B. L4, English Channel
+##########
+# Read file locations
+otu_mat <-"Data_files/L4_Engl_Channel/ASV_table.csv"
+tax_mat <- "Data_files/L4_Engl_Channel/Taxonomy.csv"
+samples_df <- "Data_files/L4_Engl_Channel/Metadata.csv"
+
+# Load 3 csv files into 1 phyloseq object (all in 1 Bedford Basion dataset)
+(L4_EC <-read_csv2phyloseq(
+  otu.file = otu_mat,
+  taxonomy.file = tax_mat,
+  metadata.file = samples_df,
+  sep = ","))
+
+
+##########
+# C. Blaynes Bay Microbial Observatory (BBMO)
+##########
+# loading Metadata
+metadata <-  read_csv("Data_files/BBMO/Metadata.csv") %>%
+  column_to_rownames(var = "SampleID")     # make sample ID the row names
+metadata$Year <- as.integer(metadata$Year)  # Cast data as integer for later ploting
+metadata$weeknum <- as.integer(metadata$weeknum)
+# loading ASV table
+ASV_table <- read_csv("Data_files/BBMO/ASV_table.csv") %>%
+  column_to_rownames('ASV_NAME')      # Make ASV IDs row names
+
+# Create 1 phyloseq object with 2 components
+(BBMO <-  phyloseq(otu_table(ASV_table, taxa_are_rows = TRUE), sample_data(metadata)))
+
+
+##########
+# D. San Pedro Ocean Time Series (SPOTS)
+##########
+# Loading Metadata
+metadata <-  read_csv("Data_files/SPOTS/Metadata_5m.csv") %>%
+  column_to_rownames(var = "SampleID")    # make sample ID the row names
+# Loading ASV table
+ASV_table <- read_csv("Data_files/SPOTS/ASV_table_5m.csv") %>%
+  column_to_rownames('ASV_id')      # Make ASV IDs row names
+
+# Create 1 phyloseq object with 2 components
+(SPOTS <- phyloseq(otu_table(ASV_table, taxa_are_rows = TRUE), sample_data(metadata))) 
+
+
+##########
+# E. Fram Strait
+##########
+# Loading Metadata
+metadata <-  read_csv("Data_files/Fram_Strait/Metadata.csv") %>%
+  column_to_rownames(var = "SampleID")    # make sample ID the row names
+# Loading ASV table
+ASV_table <- read_csv("Data_files/Fram_Strait/ASV_table.csv")[1:5906,] %>% 
+  column_to_rownames('ASV')      # Make ASV IDs row names
+
+# Create 1 phyloseq object from 3 components
+(FRAM <- phyloseq(otu_table(ASV_table, taxa_are_rows = TRUE), sample_data(metadata))) 
+
+
+##########
+# F.G.H. Australian sites
+##########
+# Loading Metadata
+metadata <-  read_csv("Data_files/Australia/contextual_META.csv") %>%
+  column_to_rownames(var = "SampleID")    # make sample ID the row names
+# Loading ASV table
+ASV_table <- read_csv("Data_files/Australia/MAI_ROT_YON_ASV.csv") %>% 
+  column_to_rownames('OTU')      # Make ASV IDs row names
+
+# Create 1 phyloseq object from 3 components
+(Australia <- phyloseq(otu_table(ASV_table, taxa_are_rows = TRUE), sample_data(metadata))) 
+
+# Maria Island
+(maria <- subset_samples(Australia, Station=='Maria Island'))
+(maria <- filter_taxa(maria, function(x) sum(x) > 0 , TRUE))
+
+# Yongala
+(yongala <- subset_samples(Australia, Station=='Yongala'))
+(yongala <- filter_taxa(yongala, function(x) sum(x) > 0 , TRUE))
+
+# Rottnest Island
+(rottnest <- subset_samples(Australia, Station=='Rottnest Island'))
+(rottnest <- filter_taxa(rottnest, function(x) sum(x) > 0 , TRUE))
+
+# Clean-up variables
+rm(Australia, ASV_table, metadata, otu_mat, samples_df,tax_mat)
+################################################################################
+
+
+
+################################################################################
+#         Estimate true richness with Breakaway
+################################################################################
+
+##########
+# A. Bedford Basin
+##########
+#Bedford_richness <- sample_richness(Bedford) # calculates only number of taxa/sample
+Bedford_break <- breakaway(Bedford)  # Computes a model to predict true richness
+#Bedford_breakaway_10 <- breakaway(Bedford, cutoff = 10) # uses only the 10 first frequency counts to compute
+#Bedford_breakaway_15 <- breakaway(Bedford, cutoff = 15) # uses only the 15 first frequency counts to compute
+
+# To best parameterize, you can use these viz:
+# Overall view
+#plot(Bedford_break, Bedford, color = "Month")
+# Comments: Some samples have extreme uncertainties because of their frequency counts,
+# It looks like Bedford_breakaway_10 shows the least number of extreme uncertainties
+
+# Per Sample view
+#plot(Bedford_break[[1]])
+# Comments: According to the tutorial @ https://adw96.github.io/breakaway/articles/intro-diversity-estimation.html
+# Estimating the intercept is what's most important as it is used in computation of richness
+
+##########
+# All other time series
+##########
+L4_EC_break <- breakaway(L4_EC)
+BBMO_break <- breakaway(BBMO)
+SPOTS_break <- breakaway(SPOTS)
+FRAM_break <- breakaway(FRAM)
+maria_break <- breakaway(maria)
+yongala_break <- breakaway(yongala)
+rottnest_break <- breakaway(rottnest)
+################################################################################
+
+
+
+################################################################################
+#          Integrate Breakaway stats and metadata, tidy up
+################################################################################
+
+##########
+# A. Bedford Basin
+##########
+# Make a table relating breakaway estimates to SampleIDs
+Bedford_break <- Bedford_break %>% summary
+names(Bedford_break)[5] <- "SampleID"
+# import metadata
+Bedford_meta <- read.csv("Data_files/Bedford_Basin/Metadata.csv", header=TRUE)
+# Merge metadata with breakaway stats and select only important columns
+Bedford_meta_break <- merge(Bedford_meta, Bedford_break, by="SampleID") %>% 
+  as_tibble() %>% 
+  select(c('SampleID', 'Year', 'month', 'day', 'Week', 'Month', 'Depth..m.', 
+           'estimate', 'error', 'lower', 'upper',))
+
+# Create date strings, specify factor levels for Month 
+Bedford_meta_break$datetime <-  as.Date(with(Bedford_meta_break, paste(Year, month, day,sep="-")), "%Y-%m-%d")
+Bedford_meta_break$Month <- factor(Bedford_meta_break$Month, levels = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                                                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'))
+# Sort dataset by time
+Bedford_meta_break <- Bedford_meta_break %>% arrange(datetime)
+
+
+##########
+# B. L4, English Channel
+##########
+# Make a table relating breakaway estimates to SampleIDs
+L4_EC_break <- L4_EC_break %>% summary
+names(L4_EC_break)[5] <- "SampleID"
+
+# import metadata
+L4_EC_meta <- read.csv("Data_files/L4_Engl_Channel/Metadata.csv", header=TRUE)
+
+# Merge metadata with breakaway stats and select only important columns
+L4_EC_meta_break <- merge(L4_EC_meta, L4_EC_break, by="SampleID") %>% 
+  as_tibble()  %>% 
+  select(c('SampleID', 'Date', 'Year', 'Month', 'Week', 
+           'estimate', 'error', 'lower', 'upper',))
+
+# Cast "Character" column as "date"
+L4_EC_meta_break$datetime <- as.Date(L4_EC_meta_break$Date)
+
+# Sort dataset by time
+L4_EC_meta_break <- arrange(L4_EC_meta_break, Date)
+
+
+##########
+# C. Blanes Bay Microbial Observatory (BBMO)
+##########
+# Make a table relating breakaway estimates to SampleIDs
+BBMO_break <- BBMO_break %>% summary
+names(BBMO_break)[5] <- "SampleID"
+
+# import metadata
+BBMO_meta <- read.csv("Data_files/BBMO/Metadata.csv", header=TRUE)
+
+# Merge metadata with breakaway stats and select only important columns
+BBMO_meta_break <- merge(BBMO_meta, BBMO_break, by="SampleID") %>% 
+  as_tibble()  %>% 
+  select(c('SampleID', 'Year', 'Month', 'monthnum', 'weeknum', 
+           'estimate', 'error', 'lower', 'upper',))
+
+# Creating date column by arbitrarily assigning the 1st of each month as the date of sampling (unavailable info)
+BBMO_meta_break$datetime <-  as.Date(with(BBMO_meta_break, paste(Year, monthnum, "01", sep="-")), "%Y-%m-%d")
+
+# Sort dataset by time
+BBMO_meta_break <- arrange(BBMO_meta_break, datetime)
+
+
+##########
+# D. San Pedro Ocean Time Series (SPOTS)
+##########
+# Make a table relating breakaway estimates to SampleIDs
+SPOTS_break <- SPOTS_break %>% summary
+names(SPOTS_break)[5] <- "SampleID"
+
+# import metadata
+SPOTS_meta <- read.csv("Data_files/SPOTS/Metadata_5m.csv", header=TRUE)
+
+# Merge metadata with breakaway stats and select only important columns
+SPOTS_meta_break <- merge(SPOTS_meta, SPOTS_break, by="SampleID") %>% 
+  as_tibble()  %>% 
+  select(c('SampleID', 'year', 'month', 'month_num', 'week_num', 'day', 
+           'estimate', 'error', 'lower', 'upper',))
+
+# Creating date column
+SPOTS_meta_break$datetime <-  as.Date(with(SPOTS_meta_break, paste(year, month_num, day, sep="-")), "%Y-%m-%d")
+
+# Sort dataset by time
+SPOTS_meta_break <- arrange(SPOTS_meta_break, datetime)
+
+
+##########
+# E. Fram Strait
+##########
+# Make a table relating breakaway estimates to SampleIDs
+FRAM_break <- FRAM_break %>% summary
+names(FRAM_break)[5] <- "SampleID"
+
+# import metadata
+FRAM_meta <- read.csv("Data_files/Fram_Strait/Metadata.csv", header=TRUE)
+
+# Merge metadata with breakaway stats and select only important columns
+FRAM_meta_break <- merge(FRAM_meta, FRAM_break, by="SampleID") %>% 
+  as_tibble()  %>% 
+  select(c('SampleID', 'date', 'Week', 'Month',
+           'estimate', 'error', 'lower', 'upper',))
+
+# Cast "Character" column as "date"
+FRAM_meta_break$datetime <- as.Date(FRAM_meta_break$date)
+
+# Sort dataset by time
+FRAM_meta_break <- arrange(FRAM_meta_break, date)
+
+
+##########
+# F. Maria Island
+##########
+# Make a table relating breakaway estimates to SampleIDs
+maria_break <- maria_break %>% summary
+names(maria_break)[5] <- "SampleID"
+
+# import metadata as data frame
+maria_meta <-  read_csv("Data_files/Australia/contextual_META.csv") %>% 
+  filter(Station=="Maria Island")
+
+# Merge metadata with breakaway stats and select only important columns
+maria_meta_break <- merge(maria_meta, maria_break, by="SampleID") %>% 
+  as_tibble()  %>% 
+  select(c('SampleID', 'Year', 'Month...20', 'Day',
+           'estimate', 'error', 'lower', 'upper',))
+
+# Creating date column
+maria_meta_break$datetime <-  as.Date(with(maria_meta_break, paste(Year, Month...20, Day, sep="-")), "%Y-%m-%d")
+
+# Sort dataset by time
+maria_meta_break <- arrange(maria_meta_break, datetime)
+
+
+##########
+# G. Yongala
+##########
+# Make a table relating breakaway estimates to SampleIDs
+yongala_break <- yongala_break %>% summary
+names(yongala_break)[5] <- "SampleID"
+
+# import metadata as data frame
+yongala_meta <-  read_csv("Data_files/Australia/contextual_META.csv") %>% 
+  filter(Station=="Yongala")
+
+# Merge metadata with breakaway stats and select only important columns
+yongala_meta_break <- merge(yongala_meta, yongala_break, by="SampleID") %>% 
+  as_tibble()  %>% 
+  select(c('SampleID', 'Year', 'Month...20', 'Day',
+           'estimate', 'error', 'lower', 'upper',))
+
+# Creating date column
+yongala_meta_break$datetime <-  as.Date(with(yongala_meta_break, paste(Year, Month...20, Day, sep="-")), "%Y-%m-%d")
+
+# Sort dataset by time
+yongala_meta_break <- arrange(yongala_meta_break, datetime)
+
+
+##########
+# H. Rottnest Island
+##########
+# Make a table relating breakaway estimates to SampleIDs
+rottnest_break <- rottnest_break %>% summary
+names(rottnest_break)[5] <- "SampleID"
+
+# import metadata as data frame
+rottnest_meta <-  read_csv("Data_files/Australia/contextual_META.csv") %>% 
+  filter(Station=="Rottnest Island")
+
+# Merge metadata with breakaway stats and select only important columns
+rottnest_meta_break <- merge(rottnest_meta, rottnest_break, by="SampleID") %>% 
+  as_tibble()  %>% 
+  select(c('SampleID', 'Year', 'Month...20', 'Day',
+           'estimate', 'error', 'lower', 'upper',))
+
+# Creating date column
+rottnest_meta_break$datetime <-  as.Date(with(rottnest_meta_break, paste(Year, Month...20, Day, sep="-")), "%Y-%m-%d")
+
+# Sort dataset by time
+rottnest_meta_break <- arrange(rottnest_meta_break, datetime)
+
+# Clean up
+rm(BBMO, BBMO_break, BBMO_meta,
+   Bedford, Bedford_meta, Bedford_break,
+   FRAM, FRAM_break, FRAM_meta,
+   L4_EC, L4_EC_break, L4_EC_meta,
+   maria, maria_break, maria_meta,
+   rottnest, rottnest_break, rottnest_meta,
+   SPOTS, SPOTS_break, SPOTS_meta,
+   yongala, yongala_break, yongala_meta,
+   )
+################################################################################
+
+
+
+################################################################################
+#         Plotting breakaway richness over time 
+################################################################################
+
+# Change dataset to the one you want to plot and make sure column names match (namely the x: axis)
+p <- ggplot(data=Bedford_meta_break,aes(x=datetime, y=estimate, colour=Month))
+(p <- p + theme_bw(24) +
+  geom_point(shape = 1,size = 2) +
+  geom_errorbar(aes(ymin=lower, ymax=upper), width=0.2, size=1) +
+  #  stat_regline_equation(aes(label = ..rr.label..), size=8)+
+  geom_jitter(width = 0, height = 0) +
+  scale_color_manual(values=c("blue1", "orange","#06f5fb",
+                              "black" ,"red", "#a7cc7b",
+                              "#cba9e5", "violet", "#808a8a",
+                              "orange", "#ff249d", "black", "yellow" )) +
+  #facet_grid(~Depth)+
+  theme(axis.title.x = element_text(size=20, vjust = 0.3),
+        axis.title.y = element_text(size=20, vjust = 0.9),
+        axis.text.y = element_text(size=20, vjust = 0.9),
+        axis.text.x = element_text(size=20, vjust = 0.3, angle = 0, hjust=1),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  theme(axis.text=element_text(size=24),
+        axis.title=element_text(size=24,face="bold")) +
+  theme(panel.grid.major = element_blank()) +
+  #stat_smooth(method = "loess", aes(color = Depth..m.),
+  #            formula = y ~ x, se = TRUE) +
+  ggtitle("Bedford Basin") +   # Title according to dataset
+  ylab("Breakaway richness") +
+  xlab("Date") +
+  ylim(0,900)   # Depending on your dataset, you migth want to change this range
+)
+################################################################################
+
+
+
+################################################################################
+#         Agglomerate data at each month
+################################################################################
+
+##########
+# A. Bedford Basin
+##########
+# Group values by month (when plotted, this fits original pattern quite well)
+Bedford_brokenaway_group <- Bedford_meta_break %>% 
+  group_by(datetime) %>% 
+  summarise_by_time(
+    datetime, .by="month",
+    estimate = median(estimate),
+    error = median(error),
+    lower = median(lower),
+    upper = median(upper)
+    ) %>% 
+  mutate(station = "Bedford Basin") %>% # Create column with station name for later plotting
+  mutate(YearMonth = yearmonth(datetime)) %>%  # Create additional column with year + month information
+  as_tsibble(index=YearMonth) %>%  # cast tibble as tsibble to access 'forecast' and 'seasonal' functions
+  tsibble::fill_gaps()
+
+##########
+# B. L4, English Channel
+##########
+# Group values by month (when plotted, this fits original pattern quite well)
+L4_EC_brokenaway_group <- L4_EC_meta_break %>% 
+  group_by(datetime) %>% 
+  summarise_by_time(
+    datetime, .by="month",
+    estimate = median(estimate),
+    error = median(error),
+    lower = median(lower),
+    upper = median(upper)
+  ) %>% 
+  mutate(station = "English Channel") %>% # Create column with station name for later plotting
+  mutate(YearMonth = yearmonth(datetime)) %>%  # Create additional column with year + month information
+  as_tsibble(index=YearMonth) %>%  # cast tibble as tsibble to access 'forecast' and 'seasonal' functions
+  tsibble::fill_gaps()
+
+##########
+# C. Blaynes Bay Microbial Observatory (BBMO)
+##########
+# Group values by month (when plotted, this fits original pattern quite well)
+BBMO_brokenaway_group <- BBMO_meta_break %>% 
+  group_by(datetime) %>% 
+  summarise_by_time(
+    datetime, .by="month",
+    estimate = median(estimate),
+    error = median(error),
+    lower = median(lower),
+    upper = median(upper)
+  ) %>% 
+  mutate(station = "Blanes Bay") %>% # Create column with station name for later plotting
+  mutate(YearMonth = yearmonth(datetime)) %>%  # Create additional column with year + month information
+  as_tsibble(index=YearMonth) %>%  # cast tibble as tsibble to access 'forecast' and 'seasonal' functions
+  tsibble::fill_gaps()
+
+##########
+# D. San Pedro Ocean Time Series (SPOTS)
+##########
+# Group values by month (when plotted, this fits original pattern quite well)
+SPOTS_brokenaway_group <- SPOTS_meta_break %>% 
+  group_by(datetime) %>% 
+  summarise_by_time(
+    datetime, .by="month",
+    estimate = median(estimate),
+    error = median(error),
+    lower = median(lower),
+    upper = median(upper)
+  ) %>% 
+  mutate(station = "San Pedro") %>% # Create column with station name for later plotting
+  mutate(YearMonth = yearmonth(datetime)) %>%  # Create additional column with year + month information
+  as_tsibble(index=YearMonth) %>%  # cast tibble as tsibble to access 'forecast' and 'seasonal' functions
+  tsibble::fill_gaps()
+
+##########
+# E. Fram Strait
+##########
+# Group values by month (when plotted, this fits original pattern quite well)
+FRAM_brokenaway_group <- FRAM_meta_break %>% 
+  group_by(datetime) %>% 
+  summarise_by_time(
+    datetime, .by="month",
+    estimate = median(estimate),
+    error = median(error),
+    lower = median(lower),
+    upper = median(upper)
+  ) %>% 
+  mutate(station = "Fram Strait") %>% # Create column with station name for later plotting
+  mutate(YearMonth = yearmonth(datetime)) %>%  # Create additional column with year + month information
+  as_tsibble(index=YearMonth) %>%  # cast tibble as tsibble to access 'forecast' and 'seasonal' functions
+  tsibble::fill_gaps()
+
+##########
+# F. Maria Island
+##########
+# Group values by month (when plotted, this fits original pattern quite well)
+maria_brokenaway_group <- maria_meta_break %>% 
+  group_by(datetime) %>% 
+  summarise_by_time(
+    datetime, 
+    .by="month",
+    estimate = median(estimate),
+    error = median(error),
+    lower = median(lower),
+    upper = median(upper)
+  ) %>% 
+  mutate(station = "Maria Island") %>% # Create column with station name for later plotting
+  mutate(YearMonth = yearmonth(datetime)) %>%  # Create additional column with year + month information
+  as_tsibble(index=YearMonth) %>%  # cast tibble as tsibble to access 'forecast' and 'seasonal' functions
+  tsibble::fill_gaps()
+
+##########
+# G. Yongala
+##########
+# Group values by month (when plotted, this fits original pattern quite well)
+yongala_brokenaway_group <- yongala_meta_break %>% 
+  group_by(datetime) %>% 
+  summarise_by_time(
+    datetime, 
+    .by="month",
+    estimate = median(estimate),
+    error = median(error),
+    lower = median(lower),
+    upper = median(upper)
+  ) %>% 
+  mutate(station = "Yongala") %>% # Create column with station name for later plotting
+  mutate(YearMonth = yearmonth(datetime)) %>%  # Create additional column with year + month information
+  as_tsibble(index=YearMonth) %>%  # cast tibble as tsibble to access 'forecast' and 'seasonal' functions
+  tsibble::fill_gaps()
+
+##########
+# H. Rottnest Island
+##########
+# Group values by month (when plotted, this fits original pattern quite well)
+rottnest_brokenaway_group <- rottnest_meta_break %>% 
+  group_by(datetime) %>% 
+  summarise_by_time(
+    datetime, 
+    .by="month",
+    estimate = median(estimate),
+    error = median(error),
+    lower = median(lower),
+    upper = median(upper)
+  ) %>% 
+  mutate(station = "Rottnest Island") %>% # Create column with station name for later plotting
+  mutate(YearMonth = yearmonth(datetime)) %>%  # Create additional column with year + month information
+  as_tsibble(index=YearMonth) %>%  # cast tibble as tsibble to access 'forecast' and 'seasonal' functions
+  tsibble::fill_gaps()
+################################################################################
+
+
+
+################################################################################
+#         Visualizing seasonal patterns of richness
+################################################################################
+# Here again, change the data set passed to functions to visualize different sites
+# Yearly patterns of richness 
+rottnest_brokenaway_group %>%
+  gg_season(estimate, labels = "both") +
+  labs(y = "Breakaway richness",
+       x = "Month",
+       title = "Rottnest Island")
+
+# Monthly patterns of richness
+rottnest_brokenaway_group %>%
+  gg_subseries(estimate) +
+  labs(y = "Breakaway richness",
+       x = "Year",
+       title = "Rottnest Island")
+# Blue h-line indicates monthly average
+
+# lag plot 
+rottnest_brokenaway_group %>%
+  gg_lag(estimate, geom = "point") +
+  labs(y = "Breakaway richness",
+       title = "Rottnest Island")
+# strong lag, especially lag1-2 indicating pronounced seasonality
+
+#autocorrelation
+rottnest_brokenaway_group %>%
+  # Max for # of weeks
+  ACF(estimate, lag_max = 52) %>%
+  autoplot() + 
+  labs(title = "Rottnest Island")
+# unsurprisingly, data closest together (in 1W increments) are highly correlated and become much more similar as winter sets in again
+################################################################################
+
+
+
+################################################################################
+#         Methods for time-series decomposition
+################################################################################
+# Here again, change the data set passed to functions to visualize different sites
+#x11 method
+x11_dcmp <- rottnest_brokenaway_group %>%
+  model(x11 = X_13ARIMA_SEATS(estimate ~ x11())) %>%
+  components()
+
+autoplot(x11_dcmp) +
+  labs(title =
+         "Decomposition of sequence richness using X-11.")
+
+x11_dcmp %>%
+  ggplot(aes(x = YearMonth)) +
+  geom_line(aes(y = estimate, colour = "Data")) +
+  geom_line(aes(y = season_adjust,
+                colour = "Seasonally Adjusted")) +
+  geom_line(aes(y = trend, colour = "Trend")) +
+  labs(y = "Richness",
+       title = "Bedford Basin") +
+  scale_colour_manual(
+    values = c("gray", "#0072B2", "#D55E00"),
+    breaks = c("Data", "Seasonally Adjusted", "Trend")
+  )
+
+
+# SEATS method...
+seats_dcmp <- SPOTS_brokenaway_group %>%
+  model(seats = X_13ARIMA_SEATS(estimate ~ seats())) %>%
+  components()
+autoplot(seats_dcmp) +
+  labs(title = "Decomposition of sequence richness using SEATS")
+# not very good at pulling seasonality
+
+  
+# STL is more robust in other fields and based on my limited knowledge, I would recommend it
+trial <- SPOTS_brokenaway_group %>%
+  model(
+    STL(estimate ~ trend(window = 13) +
+                   season(window = 'periodic'),
+        robust = TRUE)) %>%
+  components() %>%
+  autoplot()
+# This is a bit better, need to play with trend and season window 
+################################################################################
+
+
+
+################################################################################
+#         Comparing strength of seasonality vs trend
+################################################################################
+# Here is the punchline: the variance in seasonality should outweigh trend and random variation,
+# The relative strength of seasonaility can be quantified and comapred across time series!
+
+# Is it latitudinally structured?
+
+# Merge all time-series
+meta_dataset <- list(as_tibble(BBMO_brokenaway_group), 
+                     as_tibble(Bedford_brokenaway_group),
+                     as_tibble(FRAM_brokenaway_group),
+                     as_tibble(L4_EC_brokenaway_group),
+                     as_tibble(maria_brokenaway_group),
+                     as_tibble(rottnest_brokenaway_group),
+                     as_tibble(SPOTS_brokenaway_group),
+                     as_tibble(yongala_brokenaway_group)) %>% 
+  bind_rows() %>% 
+  drop_na() %>% 
+  as_tsibble(key = station, index = YearMonth) # Cast tibble as tsibble
+# Specify YearMonth as time index
+# Specify station as key - to differentiate between time-series
+
+# Compute STL features of each time-series and plot
+meta_dataset %>%
+  features(estimate, feat_stl) %>%
+  ggplot(aes(x = trend_strength, y = seasonal_strength_year, col = station)) +
+  geom_point(size = 4) +
+  ylim(0,1) +
+  xlim(0,1)
