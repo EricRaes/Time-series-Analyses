@@ -15,13 +15,12 @@ library(magrittr)
 library(phyloseq)
 library(ggpubr)
 
-setwd("~/Documents/DivNet/Eric/DivNet")
 
 ##import data
 
-otu_mat <-"ASV_BB_Table.csv"
-tax_mat <- "Taxonomy_species_Silva138.1_BB.csv"
-samples_df <- "METADATA_niskin_CTD_R_3.csv"
+otu_mat <-"Data_files/Bedford_Basin/ASV_table.csv"
+tax_mat <- "Data_files/Bedford_Basin/Taxonomy.csv"
+samples_df <- "Data_files/Bedford_Basin/Metadata.csv"
 
 file.exists(otu_mat)
 file.exists(tax_mat)
@@ -87,7 +86,7 @@ plot(est_rich$'BB14-22C')
 
 break_summary <- est_rich %>% summary
 names(break_summary)[5] <- "SampleID"
-META<- read.csv("METADATA_niskin_CTD_R_3.csv", header=TRUE)
+META<- read.csv("Data_files/Bedford_Basin/Metadata.csv", header=TRUE)
 
 #######merge with Metadata
 brokenaway<-merge(META, break_summary, by="SampleID")
@@ -140,7 +139,7 @@ p <- p + theme_bw(24)+
   ylab("Richness")+
   ylim(0,900)
 
-ggsave("Breakaway.pdf", p, height = 5 , width = 5* asp, dpi = 300)
+ggsave("output/Bedford_Basin/Breakaway.pdf", p, height = 5 , width = 5* asp, dpi = 300)
 
 #Hypothesis testing for richness
 my_x <- model.matrix(~Season, data = brokenaway)[, -1]
@@ -194,7 +193,7 @@ div <- ggplot(data = DivNeted, aes(x= Week, y=estimate, color= Year.))+
   ggtitle("DivNet")+
   ylab("Shannon Estimate")
 
-ggsave("Shannon_Proteobacteria_whole.pdf", div, height = 5 , width = 5* asp, dpi = 300)
+ggsave("output/Bedford_Basin/Shannon_Proteobacteria_whole.pdf", div, height = 5 , width = 5* asp, dpi = 300)
 
 #Hypothesis testinf with divnet estimates
 my_x <- model.matrix(~Season, data = DivNeted)
