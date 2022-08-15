@@ -686,7 +686,15 @@ meta_dataset <- list(as_tibble(BBMO_brokenaway_group),
 # Compute STL features of each time-series and plot
 meta_dataset %>%
   features(estimate, feat_stl) %>%
-  ggplot(aes(x = trend_strength, y = seasonal_strength_year, col = station)) +
+  add_column("latitude"= c(44.6936, 41.66, 50.25, 79, -42.5967, -32, 33.3, -19.3085)) %>% 
+  ggplot(aes(x = trend_strength, y = seasonal_strength_year, col = latitude, label = station)) +
   geom_point(size = 4) +
+  geom_text(nudge_y = -0.05) +
   ylim(0,1) +
-  xlim(0,1)
+  ylab("Seasonality Effect (0,1)") +
+  xlim(0,1) +
+  xlab("Overall Trend Effect (0,1)") +
+  scale_color_gradient2(high = "#FF4500", 
+                        mid = "gray10", 
+                        low = "cyan2",
+                        limits = c(-60, 60))
