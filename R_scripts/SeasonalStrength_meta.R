@@ -609,14 +609,36 @@ rottnest_brokenaway_group %>%
 # unsurprisingly, data closest together (in 1W increments) are highly correlated and become much more similar as winter sets in again
 ################################################################################
 
+## Infilling dates and interpolating for missing values
 
+# L4 english Channel 
+datetime <- seq.Date(min(L4_EC_brokenaway_group$datetime[complete.cases(L4_EC_brokenaway_group)]), 
+                     max(L4_EC_brokenaway_group$datetime[complete.cases(L4_EC_brokenaway_group)]),
+                     by="month")
+L4_EC_brokenaway_group$datetime <- datetime
 
+L4_EC_brokenaway_group_interp <- L4_EC_brokenaway_group %>% 
+  #  filter(parameter == "temperature") %>% 
+  tsibble::group_by_key()%>% 
+  mutate(estimate = zoo::na.approx(estimate, na.rm = FALSE))
+
+# Spots
+datetime <- seq.Date(min(SPOTS_brokenaway_group$datetime[complete.cases(SPOTS_brokenaway_group)]), 
+                     max(SPOTS_brokenaway_group$datetime[complete.cases(SPOTS_brokenaway_group)]),
+                     by="month")
+SPOTS_brokenaway_group$datetime <- datetime
+
+SPOTS_brokenaway_group_interp <- SPOTS_brokenaway_group %>% 
+  #  filter(parameter == "temperature") %>% 
+  tsibble::group_by_key()%>% 
+  mutate(estimate = zoo::na.approx(estimate, na.rm = FALSE))
+                         
 ################################################################################
 #         Methods for time-series decomposition
 ################################################################################
 # Here again, change the data set passed to functions to visualize different sites
 #x11 method
-x11_dcmp <- rottnest_brokenaway_group %>%
+x11_dcmp <- SPOTS_brokenaway_group_interp %>%
   model(x11 = X_13ARIMA_SEATS(estimate ~ x11())) %>%
   components()
 
@@ -639,7 +661,7 @@ x11_dcmp %>%
 
 
 # SEATS method...
-seats_dcmp <- SPOTS_brokenaway_group %>%
+seats_dcmp <- SPOTS_brokenaway_group_interp %>%
   model(seats = X_13ARIMA_SEATS(estimate ~ seats())) %>%
   components()
 autoplot(seats_dcmp) +
@@ -648,7 +670,7 @@ autoplot(seats_dcmp) +
 
   
 # STL is more robust in other fields and based on my limited knowledge, I would recommend it
-trial <- SPOTS_brokenaway_group %>%
+trial <- SPOTS_brokenaway_group_interp %>%
   model(
     STL(estimate ~ trend(window = 13) +
                    season(window = 'periodic'),
