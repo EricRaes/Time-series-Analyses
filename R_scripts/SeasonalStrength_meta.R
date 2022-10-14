@@ -151,32 +151,15 @@ rm(Australia, ASV_table, metadata, otu_mat, samples_df,tax_mat)
 ##########
 # A. Bedford Basin
 ##########
-#Bedford_richness <- sample_richness(Bedford) # calculates only number of taxa/sample
-Bedford_break <- breakaway(Bedford)  # Computes a model to predict true richness
-#Bedford_breakaway_10 <- breakaway(Bedford, cutoff = 10) # uses only the 10 first frequency counts to compute
-#Bedford_breakaway_15 <- breakaway(Bedford, cutoff = 15) # uses only the 15 first frequency counts to compute
 
-# To best parameterize, you can use these viz:
-# Overall view
-#plot(Bedford_break, Bedford, color = "Month")
-# Comments: Some samples have extreme uncertainties because of their frequency counts,
-# It looks like Bedford_breakaway_10 shows the least number of extreme uncertainties
-
-# Per Sample view
-#plot(Bedford_break[[1]])
-# Comments: According to the tutorial @ https://adw96.github.io/breakaway/articles/intro-diversity-estimation.html
-# Estimating the intercept is what's most important as it is used in computation of richness
-
-##########
-# All other time series
-##########
-L4_EC_break <- breakaway(L4_EC)
-BBMO_break <- breakaway(BBMO)
-SPOTS_break <- breakaway(SPOTS)
-FRAM_break <- breakaway(FRAM)
-maria_break <- breakaway(maria)
-yongala_break <- breakaway(yongala)
-rottnest_break <- breakaway(rottnest)
+Bedford_breakaway <- breakaway_nof1(Bedford)  
+L4_EC_breakaway <- breakaway(L4_EC)
+BBMO_breakaway <- breakaway(BBMO, cutoff = 15)
+SPOTS_breakaway <- breakaway(SPOTS)
+FRAM_breakaway <- breakaway(FRAM, cutoff = 15)
+maria_breakaway <- breakaway(maria, cutoff = 15)
+rottnest_breakaway <- breakaway(rottnest, cutoff = 15)
+yongala_breakaway <- breakaway(yongala, cutoff = 15)
 ################################################################################
 
 
@@ -189,12 +172,12 @@ rottnest_break <- breakaway(rottnest)
 # A. Bedford Basin
 ##########
 # Make a table relating breakaway estimates to SampleIDs
-Bedford_break <- Bedford_break %>% summary
-names(Bedford_break)[5] <- "SampleID"
+Bedford_breakaway <- Bedford_breakaway %>% summary
+names(Bedford_breakaway)[5] <- "SampleID"
 # import metadata
 Bedford_meta <- read.csv("Data_files/Bedford_Basin/Metadata.csv", header=TRUE)
 # Merge metadata with breakaway stats and select only important columns
-Bedford_meta_break <- merge(Bedford_meta, Bedford_break, by="SampleID") %>% 
+Bedford_meta_break <- merge(Bedford_meta, Bedford_breakaway, by="SampleID") %>% 
   as_tibble() %>% 
   select(c('SampleID', 'Year', 'month', 'day', 'Week', 'Month', 'Depth..m.', 
            'estimate', 'error', 'lower', 'upper',))
@@ -211,14 +194,14 @@ Bedford_meta_break <- Bedford_meta_break %>% arrange(datetime)
 # B. L4, English Channel
 ##########
 # Make a table relating breakaway estimates to SampleIDs
-L4_EC_break <- L4_EC_break %>% summary
-names(L4_EC_break)[5] <- "SampleID"
+L4_EC_breakaway <- L4_EC_breakaway %>% summary
+names(L4_EC_breakaway)[5] <- "SampleID"
 
 # import metadata
 L4_EC_meta <- read.csv("Data_files/L4_Engl_Channel/Metadata.csv", header=TRUE)
 
 # Merge metadata with breakaway stats and select only important columns
-L4_EC_meta_break <- merge(L4_EC_meta, L4_EC_break, by="SampleID") %>% 
+L4_EC_meta_break <- merge(L4_EC_meta, L4_EC_breakaway, by="SampleID") %>% 
   as_tibble()  %>% 
   select(c('SampleID', 'Date', 'Year', 'Month', 'Week', 
            'estimate', 'error', 'lower', 'upper',))
@@ -234,14 +217,14 @@ L4_EC_meta_break <- arrange(L4_EC_meta_break, Date)
 # C. Blanes Bay Microbial Observatory (BBMO)
 ##########
 # Make a table relating breakaway estimates to SampleIDs
-BBMO_break <- BBMO_break %>% summary
-names(BBMO_break)[5] <- "SampleID"
+BBMO_breakaway <- BBMO_breakaway %>% summary
+names(BBMO_breakaway)[5] <- "SampleID"
 
 # import metadata
 BBMO_meta <- read.csv("Data_files/BBMO/Metadata.csv", header=TRUE)
 
 # Merge metadata with breakaway stats and select only important columns
-BBMO_meta_break <- merge(BBMO_meta, BBMO_break, by="SampleID") %>% 
+BBMO_meta_break <- merge(BBMO_meta, BBMO_breakaway, by="SampleID") %>% 
   as_tibble()  %>% 
   select(c('SampleID', 'Year', 'Month', 'monthnum', 'weeknum', 
            'estimate', 'error', 'lower', 'upper',))
@@ -257,14 +240,14 @@ BBMO_meta_break <- arrange(BBMO_meta_break, datetime)
 # D. San Pedro Ocean Time Series (SPOTS)
 ##########
 # Make a table relating breakaway estimates to SampleIDs
-SPOTS_break <- SPOTS_break %>% summary
-names(SPOTS_break)[5] <- "SampleID"
+SPOTS_breakaway <- SPOTS_breakaway %>% summary
+names(SPOTS_breakaway)[5] <- "SampleID"
 
 # import metadata
 SPOTS_meta <- read.csv("Data_files/SPOTS/Metadata_5m.csv", header=TRUE)
 
 # Merge metadata with breakaway stats and select only important columns
-SPOTS_meta_break <- merge(SPOTS_meta, SPOTS_break, by="SampleID") %>% 
+SPOTS_meta_break <- merge(SPOTS_meta, SPOTS_breakaway, by="SampleID") %>% 
   as_tibble()  %>% 
   select(c('SampleID', 'year', 'month', 'month_num', 'week_num', 'day', 
            'estimate', 'error', 'lower', 'upper',))
@@ -280,14 +263,14 @@ SPOTS_meta_break <- arrange(SPOTS_meta_break, datetime)
 # E. Fram Strait
 ##########
 # Make a table relating breakaway estimates to SampleIDs
-FRAM_break <- FRAM_break %>% summary
-names(FRAM_break)[5] <- "SampleID"
+FRAM_breakaway <- FRAM_breakaway %>% summary
+names(FRAM_breakaway)[5] <- "SampleID"
 
 # import metadata
 FRAM_meta <- read.csv("Data_files/Fram_Strait/Metadata.csv", header=TRUE)
 
 # Merge metadata with breakaway stats and select only important columns
-FRAM_meta_break <- merge(FRAM_meta, FRAM_break, by="SampleID") %>% 
+FRAM_meta_break <- merge(FRAM_meta, FRAM_breakaway, by="SampleID") %>% 
   as_tibble()  %>% 
   select(c('SampleID', 'date', 'Week', 'Month',
            'estimate', 'error', 'lower', 'upper',))
@@ -303,15 +286,15 @@ FRAM_meta_break <- arrange(FRAM_meta_break, date)
 # F. Maria Island
 ##########
 # Make a table relating breakaway estimates to SampleIDs
-maria_break <- maria_break %>% summary
-names(maria_break)[5] <- "SampleID"
+maria_breakaway <- maria_breakaway %>% summary
+names(maria_breakaway)[5] <- "SampleID"
 
 # import metadata as data frame
 maria_meta <-  read_csv("Data_files/Australia/contextual_META.csv") %>% 
   filter(Station=="Maria Island")
 
 # Merge metadata with breakaway stats and select only important columns
-maria_meta_break <- merge(maria_meta, maria_break, by="SampleID") %>% 
+maria_meta_break <- merge(maria_meta, maria_breakaway, by="SampleID") %>% 
   as_tibble()  %>% 
   select(c('SampleID', 'Year', 'Month...20', 'Day',
            'estimate', 'error', 'lower', 'upper',))
@@ -327,15 +310,15 @@ maria_meta_break <- arrange(maria_meta_break, datetime)
 # G. Yongala
 ##########
 # Make a table relating breakaway estimates to SampleIDs
-yongala_break <- yongala_break %>% summary
-names(yongala_break)[5] <- "SampleID"
+yongala_breakaway <- yongala_breakaway %>% summary
+names(yongala_breakaway)[5] <- "SampleID"
 
 # import metadata as data frame
 yongala_meta <-  read_csv("Data_files/Australia/contextual_META.csv") %>% 
   filter(Station=="Yongala")
 
 # Merge metadata with breakaway stats and select only important columns
-yongala_meta_break <- merge(yongala_meta, yongala_break, by="SampleID") %>% 
+yongala_meta_break <- merge(yongala_meta, yongala_breakaway, by="SampleID") %>% 
   as_tibble()  %>% 
   select(c('SampleID', 'Year', 'Month...20', 'Day',
            'estimate', 'error', 'lower', 'upper',))
@@ -351,15 +334,15 @@ yongala_meta_break <- arrange(yongala_meta_break, datetime)
 # H. Rottnest Island
 ##########
 # Make a table relating breakaway estimates to SampleIDs
-rottnest_break <- rottnest_break %>% summary
-names(rottnest_break)[5] <- "SampleID"
+rottnest_breakaway <- rottnest_breakaway %>% summary
+names(rottnest_breakaway)[5] <- "SampleID"
 
 # import metadata as data frame
 rottnest_meta <-  read_csv("Data_files/Australia/contextual_META.csv") %>% 
   filter(Station=="Rottnest Island")
 
 # Merge metadata with breakaway stats and select only important columns
-rottnest_meta_break <- merge(rottnest_meta, rottnest_break, by="SampleID") %>% 
+rottnest_meta_break <- merge(rottnest_meta, rottnest_breakaway, by="SampleID") %>% 
   as_tibble()  %>% 
   select(c('SampleID', 'Year', 'Month...20', 'Day',
            'estimate', 'error', 'lower', 'upper',))
@@ -371,14 +354,14 @@ rottnest_meta_break$datetime <-  as.Date(with(rottnest_meta_break, paste(Year, M
 rottnest_meta_break <- arrange(rottnest_meta_break, datetime)
 
 # Clean up
-rm(BBMO, BBMO_break, BBMO_meta,
-   Bedford, Bedford_meta, Bedford_break,
-   FRAM, FRAM_break, FRAM_meta,
-   L4_EC, L4_EC_break, L4_EC_meta,
-   maria, maria_break, maria_meta,
-   rottnest, rottnest_break, rottnest_meta,
-   SPOTS, SPOTS_break, SPOTS_meta,
-   yongala, yongala_break, yongala_meta,
+rm(BBMO, BBMO_breakaway, BBMO_meta,
+   Bedford, Bedford_meta, Bedford_breakaway,
+   FRAM, FRAM_breakaway, FRAM_meta,
+   L4_EC, L4_EC_breakaway, L4_EC_meta,
+   maria, maria_breakaway, maria_meta,
+   rottnest, rottnest_breakaway, rottnest_meta,
+   SPOTS, SPOTS_breakaway, SPOTS_meta,
+   yongala, yongala_breakaway, yongala_meta,
    )
 ################################################################################
 
@@ -579,14 +562,14 @@ rottnest_brokenaway_group <- rottnest_meta_break %>%
 ################################################################################
 # Here again, change the data set passed to functions to visualize different sites
 # Yearly patterns of richness 
-rottnest_brokenaway_group %>%
+Bedford_brokenaway_group %>%
   gg_season(estimate, labels = "both") +
   labs(y = "Breakaway richness",
        x = "Month",
        title = "Rottnest Island")
 
 # Monthly patterns of richness
-rottnest_brokenaway_group %>%
+Bedford_brokenaway_group %>%
   gg_subseries(estimate) +
   labs(y = "Breakaway richness",
        x = "Year",
@@ -594,7 +577,7 @@ rottnest_brokenaway_group %>%
 # Blue h-line indicates monthly average
 
 # lag plot 
-rottnest_brokenaway_group %>%
+Bedford_brokenaway_group %>%
   gg_lag(estimate, geom = "point") +
   labs(y = "Breakaway richness",
        title = "Rottnest Island")
@@ -670,7 +653,7 @@ autoplot(seats_dcmp) +
 
   
 # STL is more robust in other fields and based on my limited knowledge, I would recommend it
-trial <- SPOTS_brokenaway_group_interp %>%
+Bedford_brokenaway_group %>%
   model(
     STL(estimate ~ trend(window = 13) +
                    season(window = 'periodic'),
