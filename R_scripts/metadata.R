@@ -103,42 +103,49 @@ p+stat_smooth(method=lm)+
 BB <- read_csv("Data_files/Bedford_Basin/Metadata.csv") %>% 
   rename(Station=Voyage, dl=day_length, chla=Chlorophyll.A, sst=Temperature) %>% 
   dplyr::filter(Depth..m. %in% c("1m", "5m", "10m")) %>% 
-  select(c(44, 6, 3, 19, 24))
+  select(c(44, 6, 3, 19, 24, 20, 41))
+BB <- mutate(BB, NOx=BB$Nitrate + BB$Nitrite)%>% 
+  select(c(1:5, 8))
 
-BBMO <- read_csv("Data_files/BBMO/Metadata.csv")[c(21,16, 5, 2)] %>% 
+BBMO <- read_csv("Data_files/BBMO/Metadata.csv")[c(21,16, 5, 2, 8, 9)] %>% 
   rename(Week=weeknum, dl=ENV_Day_length_Hours_light, chla=ENV_CHL_total, sst=ENV_Temp)
 BBMO$Station <- "Blanes Bay"
+BBMO <- mutate(BBMO, NOx=BBMO$ENV_NO2 + BBMO$ENV_NO3) %>% 
+  select(c(1:4, 7:8))
 
-Fram <- read_csv("Data_files/Fram_Strait/Metadata.csv")[c(5,6,14,26)] %>% 
-  rename(dl=day_length, chla=chlorophyll, sst=temp)
+Fram <- read_csv("Data_files/Fram_Strait/Metadata.csv")[c(5,6,14,20,26)] %>% 
+  rename(dl=day_length, chla=chlorophyll, sst=temp, NOx=NO3_NO2)
 Fram$Station <- "Fram Strait"
 
-L4 <- read_csv("Data_files/L4_Engl_Channel/Metadata.csv")[c(6, 13, 17, 3)] %>% 
-  rename(dl=day, chla="Chlorophyll A (ug/L)", sst="Temperature (C)")
+L4 <- read_csv("Data_files/L4_Engl_Channel/Metadata.csv")[c(6, 13, 17, 3, 14)] %>% 
+  rename(dl=day, chla="Chlorophyll A (ug/L)", sst="Temperature (C)", NOx="NO2 + NO3 (umol L-1)")
 L4$Station <- "English Channel"
 
 SPOT <- read_csv("Data_files/SPOTS/Metadata_5m.csv") %>% 
   rename(Week=week_num) %>% 
   mutate(Station="San Pedro", 
-         latitude=33.3)
+         latitude=33.3,
+         NOx=NA)
 SPOT$date <- as.Date(with(SPOT, paste(year, month_num, day, sep="-")), "%Y-%m-%d") 
 SPOT$dl <- daylength(SPOT$latitude, SPOT$date)
-SPOT <- SPOT[c(8:10,12,15)]
+SPOT <- SPOT[c(8:10,12,14, 16)]
 
 ################
 # northern hemisphere
 ################
 northern <- rbind(SPOT, L4, Fram, BBMO, BB) %>% 
-  drop_na()
+  drop_na(Station)
 
 N_colors <- c("#56B4E9", "#006600", "#990099", "#000066", "#E69F00")
 
 ################
 # southern hemisphere
 ################
-southern <- read_csv("Data_files/Australia/contextual_META.csv")[c(8, 12, 14, 74, 88)]%>% 
+southern <- read_csv("Data_files/Australia/contextual_META.csv")[c(8, 12, 14, 74, 88, 36, 37)]%>% 
   rename(dl=day_length, chla=CPHL_A, sst=CTDTemperature) %>% 
-  drop_na()
+  drop_na(Station)
+southern <- mutate(southern, NOx=southern$Nitrate_umol_L + southern$Nitrite_umol_L) %>% 
+  select(c(1:5, 8))
 
 S_colors <- c("#33FF33", "#F0E442","#D55E00")
 
@@ -246,3 +253,39 @@ ggplot(southern, aes(x=Week, y= dl, color=Station)) +
         legend.position="none")
 
 ggsave("output/Southern_dl.png", units = "cm" , height = 10, width = 10, dpi = 300)
+
+
+################
+# Inorganic nitrogen
+################
+ggplot(northern, aes(x=Week, y= NOx, color=Station)) +
+  theme_classic()+geom_point(shape=19, size = 1.3) +
+  stat_smooth(method = "loess", formula = y ~ x, se = TRUE) +
+  labs(y = "NO2 + NO3 (umol L-1)") + 
+  scale_color_manual(values = N_colors) +
+  theme(axis.title.x = element_text(size=14, vjust = 2),
+        axis.title.y = element_text(size=14, vjust = 2),
+        axis.text.y = element_text(size=14, vjust = 0.3, face="bold"),
+        axis.text.x = element_text(size=14, vjust = 0.3, hjust=0.5, face="bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        legend.position="none")
+ggsave("output/Nouthern_NOx.png", units = "cm" , height = 10, width = 10, dpi = 300)
+
+
+ggplot(southern, aes(x=Week, y= NOx, color=Station)) +
+  theme_classic()+geom_point(shape=19, size = 1.5) +
+  stat_smooth(method = "loess", formula = y ~ x, se = TRUE) +
+  labs(y = "NO2 + NO3 (umol L-1)") + 
+  scale_color_manual(values = S_colors) +
+  theme(axis.title.x = element_text(size=14, vjust = 2),
+        axis.title.y = element_text(size=14, vjust = 2),
+        axis.text.y = element_text(size=14, vjust = 0.3, face="bold"),
+        axis.text.x = element_text(size=14, vjust = 0.3, hjust=0.5, face="bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        legend.position="none")
+
+ggsave("output/Southern_NOx.png", units = "cm" , height = 10, width = 10, dpi = 300)
