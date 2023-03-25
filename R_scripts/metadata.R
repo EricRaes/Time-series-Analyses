@@ -5,6 +5,7 @@ library(ggpubr)
 library(GGally)
 library(ggsci)
 library(geosphere)
+library(microbiome)
 
 ### BBMO
 # Metadata
@@ -24,9 +25,10 @@ BBMO_rar <-rarefy_even_depth(BBMO, sample.size = 17500,
                              rngseed = 123, replace = TRUE, 
                              trimOTUs = TRUE, verbose=TRUE) 
 
-# Calculating div indices on rarefied data
-results <- estimate_richness(BBMO_rar, measures =c( 'Chao1', "Shannon")) %>% 
-  rownames_to_column("X")
+# Calculating div indices on data
+results <- alpha(BBMO_rar, index=c("chao1", "shannon", "pielou")) %>% # From microbiome package
+  rownames_to_column("X") %>% 
+  rename(Chao1=chao1, Shannon=diversity_shannon, Pielou=evenness_pielou)
 
 # Extract metadata from rarefied dataset
 metadata <- sample_data(BBMO_rar) %>% 
@@ -39,6 +41,7 @@ BBMO_div_metadata <- merge(results,metadata, by="X", all=TRUE)
 ofinterest <- BBMO_div_metadata[c('X',
                                   "Chao1",
                                   "Shannon",
+                                  "Pielou",
                                   'ENV_Temp',
                                   'ENV_CHL_total',
                                   'ENV_PO4',
@@ -113,9 +116,11 @@ BBMO$Station <- "Blanes Bay"
 BBMO <- mutate(BBMO, NOx=BBMO$ENV_NO2 + BBMO$ENV_NO3) %>% 
   select(c(1:4, 7:8))
 
-Fram <- read_csv("Data_files/Fram_Strait/Metadata.csv")[c(5,6,14,20,26)] %>% 
-  rename(dl=day_length, chla=chlorophyll, sst=temp, NOx=NO3_NO2)
-Fram$Station <- "Fram Strait"
+Fram <- read_csv("Data_files/Fram_Strait/Metadata.csv") %>% 
+  mutate(Week = strftime(date, format = "%V")) %>% 
+  mutate(Station="Fram Strait") %>% 
+  rename(dl=daylight, chla=chl_sens, sst=temp, NOx=NO3_NO2) %>% 
+  select(c(Week, Station, dl, chla, sst, NOx))
 
 L4 <- read_csv("Data_files/L4_Engl_Channel/Metadata.csv")[c(6, 13, 17, 3, 14)] %>% 
   rename(dl=day, chla="Chlorophyll A (ug/L)", sst="Temperature (C)", NOx="NO2 + NO3 (umol L-1)")
@@ -134,7 +139,8 @@ SPOT <- SPOT[c(8:10,12,14, 16)]
 # northern hemisphere
 ################
 northern <- rbind(SPOT, L4, Fram, BBMO, BB) %>% 
-  drop_na(Station)
+  drop_na(Station) %>% 
+  mutate(Week=as.integer(Week))
 
 N_colors <- c("#56B4E9", "#006600", "#990099", "#000066", "#E69F00")
 
@@ -146,6 +152,7 @@ southern <- read_csv("Data_files/Australia/contextual_META.csv")[c(8, 12, 14, 74
   drop_na(Station)
 southern <- mutate(southern, NOx=southern$Nitrate_umol_L + southern$Nitrite_umol_L) %>% 
   select(c(1:5, 8))
+
 
 S_colors <- c("#33FF33", "#F0E442","#D55E00")
 
@@ -224,6 +231,7 @@ ggsave("output/Southern_chla.png", units = "cm" , height = 10, width = 10, dpi =
 ################
 ggplot(northern, aes(x=Week, y= dl, color=Station)) +
   theme_classic()+geom_point(shape=19, size = 2) +
+  ylim(0,24) +
   #stat_smooth(method = "loess", formula = y ~ x, se = TRUE) +
   labs(y = "Day length (hours") + 
   scale_color_manual(values = N_colors) +
@@ -240,6 +248,7 @@ ggsave("output/Nouthern_dl.png", units = "cm" , height = 10, width = 10, dpi = 3
 
 ggplot(southern, aes(x=Week, y= dl, color=Station)) +
   theme_classic()+geom_point(shape=19, size = 2) +
+  ylim(0,24) +
   #stat_smooth(method = "loess", formula = y ~ x, se = TRUE) +
   labs(y = "Day length (hours") + 
   scale_color_manual(values = S_colors) +
@@ -253,7 +262,6 @@ ggplot(southern, aes(x=Week, y= dl, color=Station)) +
         legend.position="none")
 
 ggsave("output/Southern_dl.png", units = "cm" , height = 10, width = 10, dpi = 300)
-
 
 ################
 # Inorganic nitrogen
