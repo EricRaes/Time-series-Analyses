@@ -58,15 +58,16 @@ meta_5 <- meta_5[order(meta_5$Sample), ]
 ##########################################################
 # Aitchison distances Time lag analysis
 ##########################################################
-# Plot time Lag regression using Bray-Curtis dissimilarity, ai
-clr <- data.frame(bray.dist = as.numeric(vegdist(asv_table_5, method = "aitchison", pseudocount=1)), time.lag = as.numeric(vegdist(meta_5$Days, method = "euclidean")))
+# Plot time Lag regression using Aitchison and Bray-Curtis
+aitchison <- data.frame(aitchison = as.numeric(vegdist(asv_table_5, method = "aitchison", pseudocount=1)), time.lag = as.numeric(vegdist(meta_5$Days, method = "euclidean")))
+bray.curtis <- data.frame(bray.curtis = as.numeric(vegdist(asv_table_5, method = "bray")), time.lag = as.numeric(vegdist(meta_5$Days, method = "euclidean")))
 
-clr$time.lag <- round(clr$time.lag, digits = -1)
+aitchison$time.lag <- round(aitchison$time.lag, digits = -1)
+bray.curtis$time.lag <- round(bray.curtis$time.lag, digits = -1)
 
-
-clr %>% 
+bray.curtis %>% 
   #mutate(Lag = sqrt(interval)) %>%
-  ggplot(aes(x = time.lag, y = bray.dist)) +
+  ggplot(aes(x = time.lag, y = bray.curtis)) +
   stat_summary(fun.data = "mean_cl_boot", colour = "black") +
   #geom_point() +
   #stat_smooth(method = "lm", se = F, linewidth = 1) + # fit a regression
