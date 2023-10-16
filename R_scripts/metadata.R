@@ -10,7 +10,8 @@ library(microbiome)
 ### BBMO
 # Metadata
 metadata <-  read_csv("Data_files/BBMO/Metadata.csv") %>%
-  column_to_rownames(var = "SampleID")     # make sample ID the row names
+  column_to_rownames(var = "SampleID") %>%    # make sample ID the row names
+  mutate(ENV_CHL_total=log(ENV_CHL_total))
 metadata$Year <- as.integer(metadata$Year)  # Cast data as integer for later ploting
 metadata$weeknum <- as.integer(metadata$weeknum)
 # ASV table (Sample X Taxon, read counts)
@@ -25,10 +26,10 @@ BBMO_rar <-rarefy_even_depth(BBMO, sample.size = 17500,
                              rngseed = 123, replace = TRUE, 
                              trimOTUs = TRUE, verbose=TRUE) 
 
-# Calculating div indices on data
+#results <- estimate_richness(BBMO_rar, measures =c( 'Chao1', "Shannon")) # Phyloseq doesnt have Pielou
 results <- alpha(BBMO_rar, index=c("chao1", "shannon", "pielou")) %>% # From microbiome package
   rownames_to_column("X") %>% 
-  rename(Chao1=chao1, Shannon=diversity_shannon, Pielou=evenness_pielou)
+  dplyr::rename(Chao1=chao1, Shannon=diversity_shannon, Pielou=evenness_pielou)
 
 # Extract metadata from rarefied dataset
 metadata <- sample_data(BBMO_rar) %>% 
@@ -51,46 +52,9 @@ ofinterest <- BBMO_div_metadata[c('X',
                                   'ENV_SI',
                                   'ENV_Day_length_Hours_light')]
 
-# Correlogram
-ggcorr(ofinterest)
-
-# fancier
+# correlogram and more
 ggpairs(ofinterest[2:11], cardinality_threshold = NULL)
 
-
-
-
-# Below is code for 1 to 1 correlation plots with a smoothing line.
-
-## Set factor levels
-BBMO_div_metadata$Month = factor(BBMO_div_metadata$Month, levels=c("jan", "feb", "mar", "apr","may", "jun","jul", "aug", "sep", "oct", "nov", "dec"))
-
-## Set colours
-my.cols1 <- c("blue1","orange", "blue1",
-              "green" ,"black", 
-              "cyan", "red", "saddlebrown",
-              "goldenrod", "violet",
-              "gold1", "slateblue", "chartreuse")
-
-
-## ggplot
-p<-ggplot(data=BBMO_div_metadata, aes(x=ENV_PO4 , y=Chao1)) +
-  geom_point(aes(fill="blue1", color="blue1"),
-             shape=21, size=2, colour="black") +
-  scale_fill_manual(values="blue1") +
-  theme(axis.title.x = element_text(size=16, vjust = 0),
-        axis.title.y = element_text(size=16, vjust = 0),
-        axis.text.y = element_text(size=22, vjust = 0.5),
-        axis.text.x = element_text(size=22, vjust = 0, angle = 0, hjust=0.5),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  xlab("PO4") + 
-  ylab("Chao1")
-
-p
-p+stat_smooth(method=lm)+
-  stat_cor(method = "pearson", aes(color = "blue1"), size=6, p.accuracy = 0.001, r.accuracy = 0.01)+
-  guides(fill = FALSE, color = FALSE, linetype = FALSE, shape = FALSE)
 
 
 
@@ -104,14 +68,16 @@ p+stat_smooth(method=lm)+
 # Loading data
 ################
 BB <- read_csv("Data_files/Bedford_Basin/Metadata.csv") %>% 
-  rename(Station=Voyage, dl=day_length, chla=Chlorophyll.A, sst=Temperature) %>% 
+  dplyr::rename(Station=Voyage, dl=day_length, chla=Chlorophyll.A, sst=Temperature) %>% 
   dplyr::filter(Depth..m. %in% c("1m", "5m", "10m")) %>% 
-  select(c(44, 6, 3, 19, 24, 20, 41))
+  select(c(44, 6, 3, 19, 24, 20, 41)) #%>% 
+  #mutate(chla=log(chla))
 BB <- mutate(BB, NOx=BB$Nitrate + BB$Nitrite)%>% 
   select(c(1:5, 8))
 
 BBMO <- read_csv("Data_files/BBMO/Metadata.csv")[c(21,16, 5, 2, 8, 9)] %>% 
-  rename(Week=weeknum, dl=ENV_Day_length_Hours_light, chla=ENV_CHL_total, sst=ENV_Temp)
+  dplyr::rename(Week=weeknum, dl=ENV_Day_length_Hours_light, chla=ENV_CHL_total, sst=ENV_Temp) #%>% 
+  #mutate(chla=log(chla))
 BBMO$Station <- "Blanes Bay"
 BBMO <- mutate(BBMO, NOx=BBMO$ENV_NO2 + BBMO$ENV_NO3) %>% 
   select(c(1:4, 7:8))
@@ -119,18 +85,21 @@ BBMO <- mutate(BBMO, NOx=BBMO$ENV_NO2 + BBMO$ENV_NO3) %>%
 Fram <- read_csv("Data_files/Fram_Strait/Metadata.csv") %>% 
   mutate(Week = strftime(date, format = "%V")) %>% 
   mutate(Station="Fram Strait") %>% 
-  rename(dl=daylight, chla=chl_sens, sst=temp, NOx=NO3_NO2) %>% 
-  select(c(Week, Station, dl, chla, sst, NOx))
+  dplyr::rename(dl=daylight, chla=chl_sens, sst=temp, NOx=NO3_NO2) %>% 
+  select(c(Week, Station, dl, chla, sst, NOx)) #%>% 
+  #mutate(chla=log(chla))
 
 L4 <- read_csv("Data_files/L4_Engl_Channel/Metadata.csv")[c(6, 13, 17, 3, 14)] %>% 
-  rename(dl=day, chla="Chlorophyll A (ug/L)", sst="Temperature (C)", NOx="NO2 + NO3 (umol L-1)")
+  dplyr::rename(dl=day, chla="Chlorophyll A (ug/L)", sst="Temperature (C)", NOx="NO2 + NO3 (umol L-1)") #%>% 
+  #mutate(chla=log(chla))
 L4$Station <- "English Channel"
 
 SPOT <- read_csv("Data_files/SPOTS/Metadata_5m.csv") %>% 
-  rename(Week=week_num) %>% 
+  dplyr::rename(Week=week_num) %>% 
   mutate(Station="San Pedro", 
          latitude=33.3,
-         NOx=NA)
+         NOx=NA) #%>% 
+  #mutate(chla=log(chla))
 SPOT$date <- as.Date(with(SPOT, paste(year, month_num, day, sep="-")), "%Y-%m-%d") 
 SPOT$dl <- daylength(SPOT$latitude, SPOT$date)
 SPOT <- SPOT[c(8:10,12,14, 16)]
@@ -148,13 +117,15 @@ N_colors <- c("#56B4E9", "#006600", "#990099", "#000066", "#E69F00")
 # southern hemisphere
 ################
 southern <- read_csv("Data_files/Australia/contextual_META.csv")[c(8, 12, 14, 74, 88, 36, 37)]%>% 
-  rename(dl=day_length, chla=CPHL_A, sst=CTDTemperature) %>% 
-  drop_na(Station)
-southern <- mutate(southern, NOx=southern$Nitrate_umol_L + southern$Nitrite_umol_L) %>% 
+  dplyr::rename(dl=day_length, chla=CPHL_A, sst=CTDTemperature) %>% 
+  drop_na(Station) #%>% 
+  #mutate(chla=log(chla))
+southern <- rowwise(southern) %>% 
+  mutate(NOx = sum(c(Nitrate_umol_L, Nitrite_umol_L), na.rm = TRUE)) %>% 
   select(c(1:5, 8))
 
 
-S_colors <- c("#33FF33", "#F0E442","#D55E00")
+S_colors <- c("#33FF33", "#9B26B6" ,"#E10600")
 
 ################
 # Temp
@@ -172,7 +143,7 @@ ggplot(northern, aes(x=Week, y= sst, color=Station)) +
         panel.grid.minor = element_blank(),
         panel.background = element_blank(), 
   )#legend.position="none")
-ggsave("output/Nouthern_leg.png", units = "cm" , height = 30, width = 30, dpi = 300)
+ggsave("output/Nouthern_leg.png", units = "cm" , height = 10, width = 10, dpi = 300)
 
 
 ggplot(southern, aes(x=Week, y= sst, color=Station)) +
@@ -187,13 +158,14 @@ ggplot(southern, aes(x=Week, y= sst, color=Station)) +
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         panel.background = element_blank(), 
-  )#legend.position="none")
+        legend.position="none")
 
-ggsave("output/Southern_leg.png", units = "cm" , height = 30, width = 30, dpi = 300)
+ggsave("output/Southern_temp.png", units = "cm" , height = 10, width = 10, dpi = 300)
 
 ################
 # chla
 ################
+dev.new()
 ggplot(northern, aes(x=Week, y= chla, color=Station)) +
   theme_classic()+geom_point(shape=19, size = 2) +
   stat_smooth(method = "loess", formula = y ~ x, se = TRUE) +
@@ -245,10 +217,34 @@ ggplot(northern, aes(x=Week, y= dl, color=Station)) +
         legend.position="none")
 ggsave("output/Nouthern_dl.png", units = "cm" , height = 10, width = 10, dpi = 300)
 
+################
+# northern hemisphere without Fram
+################
+northern <- rbind(SPOT, L4, BBMO, BB) %>% 
+  drop_na(Station) %>% 
+  mutate(Week=as.integer(Week))
 
+N_colors <- c("#56B4E9", "#006600", "#000066", "#E69F00")
+ggplot(northern, aes(x=Week, y= dl, color=Station)) +
+  theme_classic()+geom_point(shape=19, size = 2) +
+  ylim(7,17) +
+  #stat_smooth(method = "loess", formula = y ~ x, se = TRUE) +
+  labs(y = "Day length (hours") + 
+  scale_color_manual(values = N_colors) +
+  theme(axis.title.x = element_text(size=14, vjust = 2),
+        axis.title.y = element_text(size=14, vjust = 2),
+        axis.text.y = element_text(size=14, vjust = 0.3, face="bold"),
+        axis.text.x = element_text(size=14, vjust = 0.3, hjust=0.5, face="bold"),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        legend.position="none")
+ggsave("output/Nouthern_no_FRAM_dl.png", units = "cm" , height = 10, width = 10, dpi = 300)
+######################
+## Back to southern
 ggplot(southern, aes(x=Week, y= dl, color=Station)) +
   theme_classic()+geom_point(shape=19, size = 2) +
-  ylim(0,24) +
+  ylim(7,17) +
   #stat_smooth(method = "loess", formula = y ~ x, se = TRUE) +
   labs(y = "Day length (hours") + 
   scale_color_manual(values = S_colors) +
@@ -258,10 +254,10 @@ ggplot(southern, aes(x=Week, y= dl, color=Station)) +
         axis.text.x = element_text(size=14, vjust = 0.3, hjust=0.5, face="bold"),
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
-        panel.background = element_blank(), 
+        panel.background = element_blank(),
         legend.position="none")
 
-ggsave("output/Southern_dl.png", units = "cm" , height = 10, width = 10, dpi = 300)
+ggsave("output/Southern_sst.png", units = "cm" , height = 10, width = 10, dpi = 300)
 
 ################
 # Inorganic nitrogen

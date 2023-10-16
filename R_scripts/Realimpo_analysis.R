@@ -29,10 +29,13 @@ ASV_table <- read_csv("Data_files/Fram_Strait/ASV_table.csv") %>%
 Fram_rar <-rarefy_even_depth(Fram, sample.size = 10842,
                                 rngseed = 123, replace = TRUE, trimOTUs = TRUE, verbose=TRUE)
 
-results <- estimate_richness(Fram_rar, measures =c( 'Chao1', "Shannon"))
-results[4] <- evenness(Fram_rar, index="Pielou")
-results <- rownames_to_column(results, var = "X")
-results$X <- gsub("X", "", results$X)
+#results <- estimate_richness(Bedford_rar, measures =c( 'Chao1', "Shannon")) # Phyloseq doesnt have Pielou
+results <- alpha(Fram_rar, index=c("chao1", "shannon", "pielou")) %>% # From microbiome package
+  rownames_to_column("X") %>% 
+  rename(Chao1=chao1, Shannon=diversity_shannon, Pielou=evenness_pielou)
+
+
+
 
 d <- sample_data(Fram_rar) %>% 
   as.data.frame() %>% 
