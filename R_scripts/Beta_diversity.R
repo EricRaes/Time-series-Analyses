@@ -20,7 +20,7 @@ library(vegan)
 (Bedford_no_mito = subset_taxa(Bedford_no_mito, !Order=="Chloroplast"))
 (Bedford_no_mito = subset_taxa(Bedford_no_mito, !Family=="Mitochondria"))
 # Select depths
-(Bedford_5 = subset_samples(Bedford_no_mito, Depth == 5)) # remove deep samples 
+(Bedford_1 = subset_samples(Bedford_no_mito, Depth == 1)) # remove deep samples 
 (Bedford_1_5_10 = subset_samples(Bedford_no_mito, Depth < 50)) # remove deep samples 
 # Sum depths at each date
 (Bedford_1_5_10 = merge_samples(Bedford_1_5_10, "Date_Merge", fun = sum))
@@ -28,20 +28,20 @@ library(vegan)
 
 ######## Compute count of days for vegdist to compute euclidean distance in time
 # Extract sample IDs and associated dates - order by date
-meta_5 <- sample_data(Bedford_5) %>% 
+meta_1 <- sample_data(Bedford_1) %>% 
   as.data.frame() %>% 
   as_tibble() %>% 
   select(c("Sample", "Date_Merge")) %>%
   mutate(Date_Merge = as.Date(Date_Merge)) %>% 
   arrange(Date_Merge)
 # Generate a variable (Days) which is a count of days since first sample (day 0)
-startdate <- meta_5$Date_Merge[1] # start date (sample 1)
-meta_5 <- mutate(meta_5, Days = as.numeric(difftime(meta_5$Date_Merge, startdate, units = "days"))) %>% 
+startdate <- meta_1$Date_Merge[1] # start date (sample 1)
+meta_1 <- mutate(meta_1, Days = as.numeric(difftime(meta_1$Date_Merge, startdate, units = "days"))) %>% 
   select(c("Sample", "Days")) # Grab Sample ID and day count
 
 
 ######## Grab ASV table and transpose so taxa are columns
-asv_table_5 <- otu_table(Bedford_5) %>% 
+asv_table_1 <- otu_table(Bedford_1) %>% 
   as.data.frame() %>% 
   t()
 
@@ -49,9 +49,9 @@ asv_table_5 <- otu_table(Bedford_5) %>%
 ######## Order rows of both ASV table and metadata 
 ######## This is done alphabetically on Sample IDs, not necessarily chronologically
 # Order ASV table
-asv_table_5 <- asv_table_5[order(row.names(asv_table_5)), ] 
+asv_table_1 <- asv_table_1[order(row.names(asv_table_1)), ] 
 # Order metadata the same way
-meta_5 <- meta_5[order(meta_5$Sample), ] 
+meta_1 <- meta_1[order(meta_1$Sample), ] 
 
 
 
@@ -59,8 +59,8 @@ meta_5 <- meta_5[order(meta_5$Sample), ]
 # Aitchison distances Time lag analysis
 ##########################################################
 # Plot time Lag regression using Aitchison and Bray-Curtis
-aitchison <- data.frame(aitchison = as.numeric(vegdist(asv_table_5, method = "aitchison", pseudocount=1)), time.lag = as.numeric(vegdist(meta_5$Days, method = "euclidean")))
-bray.curtis <- data.frame(bray.curtis = as.numeric(vegdist(asv_table_5, method = "bray")), time.lag = as.numeric(vegdist(meta_5$Days, method = "euclidean")))
+aitchison <- data.frame(aitchison = as.numeric(vegdist(asv_table_1, method = "aitchison", pseudocount=1)), time.lag = as.numeric(vegdist(meta_1$Days, method = "euclidean")))
+bray.curtis <- data.frame(bray.curtis = as.numeric(vegdist(asv_table_1, method = "bray")), time.lag = as.numeric(vegdist(meta_1$Days, method = "euclidean")))
 
 aitchison$time.lag <- round(aitchison$time.lag, digits = -1)
 bray.curtis$time.lag <- round(bray.curtis$time.lag, digits = -1)
