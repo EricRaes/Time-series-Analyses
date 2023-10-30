@@ -62,13 +62,10 @@ meta_1 <- meta_1[order(meta_1$Sample), ]
 aitchison <- data.frame(aitchison = as.numeric(vegdist(asv_table_1, method = "aitchison", pseudocount=1)), time.lag = as.numeric(vegdist(meta_1$Days, method = "euclidean")))
 bray.curtis <- data.frame(bray.curtis = as.numeric(vegdist(asv_table_1, method = "bray")), time.lag = as.numeric(vegdist(meta_1$Days, method = "euclidean")))
 
-aitchison$time.lag <- round(aitchison$time.lag, digits = -1)
-bray.curtis$time.lag <- round(bray.curtis$time.lag, digits = -1)
-
-bray.curtis %>% 
+aitchison %>% 
   #mutate(Lag = sqrt(interval)) %>%
-  ggplot(aes(x = time.lag, y = bray.curtis)) +
-  stat_summary(fun.data = "mean_cl_boot", colour = "black") +
+  ggplot(aes(x = time.lag, y = aitchison)) +
+  stat_summary_bin(fun.data = "mean_cl_boot", colour = "black", binwidth=10) +
   #geom_point() +
   #stat_smooth(method = "lm", se = F, linewidth = 1) + # fit a regression
   #stat_smooth(method = "loess", se = F, size = 1, col = "firebrick3") + # fit a curve
@@ -80,7 +77,7 @@ bray.curtis %>%
         panel.grid.minor = element_line(colour = "grey75", linewidth = 0.5),
         plot.margin=unit(c(0.2,1,0.2,0.2),"cm"))
 
-ggsave("output/Bedford_Basin/bb_5m_aitchison_tl.png", units = "cm" , height = 15, width = 25, dpi = 300)
+ggsave("output/Bedford_Basin/bb_1m_aitchison_tl.png", units = "cm" , height = 15, width = 25, dpi = 300)
 
 
 
